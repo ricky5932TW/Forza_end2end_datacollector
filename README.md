@@ -140,12 +140,12 @@ Use the session loader:
 from session_data import ForzaSession
 
 session = ForzaSession("data/sessions/YYYYMMDD_HHMMSS")
-clip = session.load_clip(0)
+clip = session.load_clip(0, valid_only=True)
 
 video = clip["video_bgr"]      # T,H,W,3 uint8, OpenCV BGR
 audio = clip["audio_pcm"]      # N,channels int16
 actions = clip["actions"]      # T,3 float32: steer, accel, brake
-telemetry = clip["telemetry"]  # T,7 float32
+telemetry = clip["telemetry"]  # T,37 float32
 
 print(video.shape, audio.shape, actions[:3])
 ```
@@ -153,7 +153,7 @@ print(video.shape, audio.shape, actions[:3])
 Export one model-ready clip:
 
 ```powershell
-python export_clip_npz.py data/sessions/YYYYMMDD_HHMMSS --clip-id 0
+python export_clip_npz.py data/sessions/YYYYMMDD_HHMMSS --clip-id 0 --valid-only
 ```
 
 Recover one raw UDP packet:

@@ -4,7 +4,7 @@ Examples:
     from session_data import ForzaSession
 
     session = ForzaSession("data/sessions/20260520_165701")
-    clip = session.load_clip(0)
+    clip = session.load_clip(0, valid_only=True)
     print(clip["video_bgr"].shape, clip["audio_pcm"].shape)
     print(clip["actions"][:3])
 """
@@ -75,6 +75,18 @@ def as_int(value: str, default: int = 0) -> int:
     return default if value == "" else int(float(value))
 
 
+def is_valid_row(row: dict[str, Any]) -> bool:
+    """Return whether a CSV row's ``is_valid`` flag is truthy."""
+
+    value = str(row.get("is_valid", "")).strip().lower()
+    if value in {"true", "yes"}:
+        return True
+    try:
+        return as_int(value) == 1
+    except ValueError:
+        return False
+
+
 class ForzaSession:
     """Read one session folder produced by ``capture_session.py``."""
 
@@ -103,13 +115,13 @@ class ForzaSession:
         """Load ``aligned_frames.csv`` rows."""
 
         rows = read_csv_rows(self.session_dir / "aligned_frames.csv")
-        return [row for row in rows if row.get("is_valid") == "1"] if valid_only else rows
+        return [row for row in rows if is_valid_row(row)] if valid_only else rows
 
     def clips(self, valid_only: bool = False) -> list[dict[str, str]]:
         """Load ``clips.csv`` rows."""
 
         rows = read_csv_rows(self.session_dir / "clips.csv")
-        return [row for row in rows if row.get("is_valid") == "1"] if valid_only else rows
+        return [row for row in rows if is_valid_row(row)] if valid_only else rows
 
     def telemetry_records(self) -> Iterable[dict[str, Any]]:
         """Yield parsed full telemetry records from ``telemetry.jsonl``."""
@@ -130,19 +142,48 @@ class ForzaSession:
             file.seek(offset)
             return file.read(size)
 
+    def video_frame_index(self) -> dict[int, int]:
+        """Map recorded ``frame_id`` values to positions inside ``video.avi``."""
+
+        return {as_int(row["frame_id"]): index for index, row in enumerate(self.frames())}
+
+    def _aligned_rows_for_frame_span(self, start_frame: int, end_frame: int) -> list[dict[str, str]]:
+        aligned = self.aligned_frames()
+        aligned_index = {as_int(row["frame_id"]): index for index, row in enumerate(aligned)}
+        if start_frame not in aligned_index:
+            raise KeyError(f"missing aligned start frame row: {start_frame}")
+        if end_frame not in aligned_index:
+            raise KeyError(f"missing aligned end frame row: {end_frame}")
+
+        start_index = aligned_index[start_frame]
+        end_index = aligned_index[end_frame]
+        if end_index < start_index:
+            raise ValueError(f"end frame {end_frame} appears before start frame {start_frame}")
+        return aligned[start_index : end_index + 1]
+
     def load_video_frames(self, start_frame: int, end_frame: int) -> np.ndarray:
-        """Load inclusive video frame range as BGR uint8 array: ``T,H,W,3``."""
+        """Load inclusive recorded frame-id span as BGR uint8 array: ``T,H,W,3``."""
 
         import cv2
+
+        frame_index = self.video_frame_index()
+        if start_frame not in frame_index:
+            raise KeyError(f"missing video start frame row: {start_frame}")
+        if end_frame not in frame_index:
+            raise KeyError(f"missing video end frame row: {end_frame}")
+        start_video_index = frame_index[start_frame]
+        end_video_index = frame_index[end_frame]
+        if end_video_index < start_video_index:
+            raise ValueError(f"end frame {end_frame} appears before start frame {start_frame}")
 
         video_path = self.session_dir / "video.avi"
         cap = cv2.VideoCapture(str(video_path))
         try:
             if not cap.isOpened():
                 raise RuntimeError(f"could not open {video_path}")
-            cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
+            cap.set(cv2.CAP_PROP_POS_FRAMES, start_video_index)
             frames = []
-            for _frame_id in range(start_frame, end_frame + 1):
+            for _frame_id in range(start_video_index, end_video_index + 1):
                 ok, frame = cap.read()
                 if not ok:
                     break
@@ -192,21 +233,31 @@ class ForzaSession:
 
         return np.array([[as_float(row.get(column, "")) for column in columns] for row in rows], dtype=np.float32)
 
-    def load_clip(self, clip_id: int) -> dict[str, Any]:
+    def load_valid_clip(self, clip_index: int) -> dict[str, Any]:
+        """Load one clip by index from ``clips(valid_only=True)``."""
+
+        return self.load_clip(clip_index, valid_only=True)
+
+    def load_clip(self, clip_id: int, valid_only: bool = False) -> dict[str, Any]:
         """Load one clip as video, audio, aligned rows, actions, and telemetry.
 
         The video frame range and audio sample range come from ``clips.csv``.
         Telemetry/actions come from matching rows in ``aligned_frames.csv``.
+        When ``valid_only`` is true, ``clip_id`` is an index into
+        ``clips(valid_only=True)`` instead of the unfiltered clip table.
         """
 
-        clip_row = self.clips()[clip_id]
+        clip_row = self.clips(valid_only=valid_only)[clip_id]
         start_frame = as_int(clip_row["start_frame_id"])
         end_frame = as_int(clip_row["end_frame_id"])
         start_audio = as_int(clip_row["start_audio_sample"])
         end_audio = as_int(clip_row["end_audio_sample"])
 
-        aligned_by_frame = {as_int(row["frame_id"]): row for row in self.aligned_frames()}
-        rows = [aligned_by_frame[frame_id] for frame_id in range(start_frame, end_frame + 1)]
+        rows = self._aligned_rows_for_frame_span(start_frame, end_frame)
+        if valid_only:
+            invalid_frame_ids = [row["frame_id"] for row in rows if not is_valid_row(row)]
+            if invalid_frame_ids:
+                raise ValueError(f"clip contains invalid aligned frames: {invalid_frame_ids[:5]}")
         return {
             "clip_row": clip_row,
             "aligned_rows": rows,

@@ -19,6 +19,11 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Export one Forza clip as NPZ")
     parser.add_argument("session_dir", type=Path)
     parser.add_argument("--clip-id", type=int, default=0)
+    parser.add_argument(
+        "--valid-only",
+        action="store_true",
+        help="Treat --clip-id as an index into clips(valid_only=True).",
+    )
     parser.add_argument("--output", type=Path, default=None)
     return parser.parse_args()
 
@@ -26,7 +31,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     session = ForzaSession(args.session_dir)
-    clip = session.load_clip(args.clip_id)
+    clip = session.load_clip(args.clip_id, valid_only=args.valid_only)
     output = args.output or (args.session_dir / f"clip_{args.clip_id:06d}.npz")
 
     frame_ids = np.array([int(row["frame_id"]) for row in clip["aligned_rows"]], dtype=np.int64)
