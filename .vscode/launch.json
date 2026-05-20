@@ -7,7 +7,7 @@
       "request": "launch",
       "program": "${workspaceFolder}/capture_session.py",
       "console": "integratedTerminal",
-      "args": ["--duration", "300"]
+      "args": ["--duration", "600"]
     },
     {
       "name": "Align Last Session",

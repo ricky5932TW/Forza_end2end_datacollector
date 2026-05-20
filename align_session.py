@@ -18,7 +18,41 @@ from pathlib import Path
 from typing import Any
 
 
-TELEMETRY_COLUMNS = ["TimestampMS", "Speed", "CurrentEngineRpm", "Gear", "Accel", "Brake", "Steer"]
+TELEMETRY_COLUMNS = [
+    "TimestampMS",
+    "Speed",
+    "CurrentEngineRpm",
+    "Gear",
+    "Accel",
+    "Brake",
+    "Steer",
+    "AccelerationX",
+    "AccelerationY",
+    "AccelerationZ",
+    "VelocityX",
+    "VelocityY",
+    "VelocityZ",
+    "AngularVelocityX",
+    "AngularVelocityY",
+    "AngularVelocityZ",
+    "Yaw",
+    "Pitch",
+    "Roll",
+    "NormalizedSuspensionTravelFrontLeft",
+    "NormalizedSuspensionTravelFrontRight",
+    "NormalizedSuspensionTravelRearLeft",
+    "NormalizedSuspensionTravelRearRight",
+    "TireSlipRatioFrontLeft",
+    "TireSlipRatioFrontRight",
+    "TireSlipRatioRearLeft",
+    "TireSlipRatioRearRight",
+    "WheelRotationSpeedFrontLeft",
+    "WheelRotationSpeedFrontRight",
+    "WheelRotationSpeedRearLeft",
+    "WheelRotationSpeedRearRight",
+    "Power",
+    "Torque",
+]
 
 
 def read_csv(path: Path) -> list[dict[str, str]]:
