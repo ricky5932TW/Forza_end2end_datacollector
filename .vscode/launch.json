@@ -1,0 +1,60 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Capture Forza Session",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/capture_session.py",
+      "console": "integratedTerminal",
+      "args": ["--duration", "300"]
+    },
+    {
+      "name": "Align Last Session",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/align_session.py",
+      "console": "integratedTerminal",
+      "args": ["${input:sessionDir}"]
+    },
+    {
+      "name": "Run Tests",
+      "type": "python",
+      "request": "launch",
+      "module": "unittest",
+      "console": "integratedTerminal",
+      "args": ["discover", "-s", "tests"]
+    },
+    {
+      "name": "Diagnose Latest Session",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/diagnose_session.py",
+      "console": "integratedTerminal",
+      "args": ["--latest"]
+    },
+    {
+      "name": "Compress Latest Session",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/compress_session.py",
+      "console": "integratedTerminal",
+      "args": ["--latest", "--codec", "libx264", "--crf", "23"]
+    },
+    {
+      "name": "Export Clip NPZ",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/export_clip_npz.py",
+      "console": "integratedTerminal",
+      "args": ["${input:sessionDir}", "--clip-id", "0"]
+    }
+  ],
+  "inputs": [
+    {
+      "id": "sessionDir",
+      "type": "promptString",
+      "description": "Session directory, e.g. data/sessions/20260520_170000"
+    }
+  ]
+}
